@@ -29,6 +29,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
@@ -43,7 +44,7 @@ import java.util.regex.Pattern;
 public class WebSecurityConfig {
 
     public static final String ADMIN_API = "/admin/api";
-    public static final String CSRF_SESSION_ATTRIBUTE = "CSRF_SESSION_ATTRIBUTE";
+    //public static final String CSRF_SESSION_ATTRIBUTE = "CSRF_SESSION_ATTRIBUTE";
     public static final String CSRF_PARAM_NAME = "_csrf";
     public static final String OPERATOR = "OPERATOR";
     private static final String SUPERVISOR = "SUPERVISOR";
@@ -105,10 +106,9 @@ public class WebSecurityConfig {
 
         @Bean
         public CsrfTokenRepository getCsrfTokenRepository() {
-            HttpSessionCsrfTokenRepository repository = new HttpSessionCsrfTokenRepository();
-            repository.setSessionAttributeName(CSRF_SESSION_ATTRIBUTE);
-            repository.setParameterName(CSRF_PARAM_NAME);
-            return repository;
+            CookieCsrfTokenRepository repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+            repo.setParameterName(CSRF_PARAM_NAME);
+            return repo;
         }
 
         @Override
