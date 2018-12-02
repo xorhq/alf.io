@@ -43,15 +43,13 @@ import org.springframework.security.config.annotation.web.configurers.CsrfConfig
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.security.web.util.matcher.*;
 import org.springframework.web.filter.GenericFilterBean;
 
 import javax.servlet.*;
@@ -197,6 +195,43 @@ public class WebSecurityConfig {
         return authorization != null && authorization.toLowerCase(Locale.ENGLISH).startsWith("apikey ");
     }
 
+    private static final OrRequestMatcher IS_PUBLIC_URLS = new OrRequestMatcher(
+        new AntPathRequestMatcher("/"),
+        new AntPathRequestMatcher("/resources/**"),
+        new AntPathRequestMatcher("/event/**"),
+        new AntPathRequestMatcher("/file/**"),
+        new AntPathRequestMatcher("/api/events/**"));
+    private static final NegatedRequestMatcher IS_ADMIN_URLS = new NegatedRequestMatcher(IS_PUBLIC_URLS);
+
+    private static boolean isAdminUrlsCheck(HttpServletRequest request) {
+        return IS_ADMIN_URLS.matches(request);
+    }
+
+    private static boolean isPublicUrlsCheck(HttpServletRequest request) {
+        return IS_PUBLIC_URLS.matches(request);
+    }
+
+    private static class RemoveAuthForPublicUrlsFilter implements Filter {
+
+        @Override
+        public void init(FilterConfig filterConfig) throws ServletException {
+
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+            if(isPublicUrlsCheck((HttpServletRequest) request)) {
+                SecurityContextHolder.clearContext();
+            }
+
+            chain.doFilter(request, response);
+        }
+
+        @Override
+        public void destroy() {
+
+        }
+    }
 
     /**
      * Default form based configuration.
@@ -236,6 +271,8 @@ public class WebSecurityConfig {
 
         @Override
         protected void configure(HttpSecurity http) throws Exception {
+
+            http.requestMatcher(WebSecurityConfig::isAdminUrlsCheck);
 
             if(environment.acceptsProfiles(Profiles.of("!"+Initializer.PROFILE_DEV))) {
                 http.requiresChannel().antMatchers("/healthz").requiresInsecure()
@@ -315,6 +352,8 @@ public class WebSecurityConfig {
             if(environment.acceptsProfiles(Profiles.of(Initializer.PROFILE_DEMO))) {
                 http.addFilterAfter(new UserCreatorBeforeLoginFilter(userManager, "/authenticate"), RecaptchaLoginFilter.class);
             }
+
+            http.addFilterAfter(new RemoveAuthForPublicUrlsFilter(), UsernamePasswordAuthenticationFilter.class);
         }
 
 

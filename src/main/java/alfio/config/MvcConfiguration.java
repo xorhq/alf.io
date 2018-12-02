@@ -45,6 +45,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHttpSession;
 import org.springframework.ui.ModelMap;
@@ -124,6 +125,13 @@ public class MvcConfiguration implements WebMvcConfigurer {
         registry.addInterceptor(getCsrfInterceptor());
         registry.addInterceptor(getCSPInterceptor());
         registry.addInterceptor(getDefaultTemplateObjectsFiller());
+        /*registry.addInterceptor(new HandlerInterceptorAdapter() {
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+                System.err.println("authentication for path "+request.getPathTranslated()+" is "+ SecurityContextHolder.getContext().getAuthentication());
+                return true;
+            }
+        });*/
     }
 
     @Bean
@@ -273,7 +281,9 @@ public class MvcConfiguration implements WebMvcConfigurer {
         return new HandlerInterceptorAdapter() {
             @Override
             public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
-                Optional.ofNullable(modelAndView).ifPresent(mv -> mv.addObject(WebSecurityConfig.CSRF_PARAM_NAME, request.getAttribute(CsrfToken.class.getName())));
+                if (modelAndView != null) {
+                    modelAndView.addObject(WebSecurityConfig.CSRF_PARAM_NAME, request.getAttribute(CsrfToken.class.getName()));
+                }
             }
         };
     }
